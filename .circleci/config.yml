@@ -1,51 +1,29 @@
-# Java Gradle CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-java/ for more details
-#
+defaults: &workdirAndImage
+  working_directory: ~/workspace
+  docker:
+    - image: circleci/openjdk:8-jdk
+
+defaults: &test
+  - persist_to_workspace:
+      # Must be an absolute path, or relative path from working_directory
+      root: workspace
+
 version: 2
-
-machine:
-  enabled: true
-
 jobs:
+
+
   checkout_code:
-    working_directory: ~/circleci-stepwise
-    docker:
-      # specify the version you desire here
-      - image: circleci/openjdk:8-jdk
+    <<: *workdirAndImage
     steps:
-      - checkout
-      - run:
-          name: save SHA to a file
-          command: echo $CIRCLE_SHA1 > .circle-sha
-      - save_cache:
-          key: v1-repo-{{ checksum ".circle-sha" }}
+      - checkout:
+          path: ~/workspace/repo
+      - persist_to_workspace:
+          root: ~/workspace
           paths:
-            - ~/circleci-stepwise
-  test:
-    working_directory: ~/circleci-stepwise
-    docker:
-      # specify the version you desire here
-      - image: circleci/openjdk:8-jdk
-    steps:
-      - run:
-          name: save SHA to a file
-          command: echo $CIRCLE_SHA1 > .circle-sha
-      - restore_cache:
-          key: v1-repo-{{ checksum ".circle-sha" }}
-          paths:
-            - ~/circleci-stepwise
-      - restore_cache:
-          keys:
-          - v1-dependencies-{{ checksum "build.gradle" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
-      - run: gradle test
+            - repo/
+
   build:
-    working_directory: ~/circleci-stepwise
-    docker:
-      # specify the version you desire here
-      - image: circleci/openjdk:8-jdk
+    <<: *workdirAndImage
 
     environment:
       # Customize the JVM maximum heap limit
@@ -53,35 +31,52 @@ jobs:
       TERM: dumb
 
     steps:
+      - run: cd repo
       - run:
           name: save SHA to a file
           command: echo $CIRCLE_SHA1 > .circle-sha
       - restore_cache:
-          key: v1-repo-{{ checksum ".circle-sha" }}
+          key: v2-repo-{{ checksum ".circle-sha" }}
       # Download and cache dependencies
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "build.gradle" }}
+          - v2-dependencies-{{ checksum "build.gradle" }}
           # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
+          - v2-dependencies-
 
-      - run: gradle dependencies
       - run: gradle build
 
       - save_cache:
           paths:
             - ~/.gradle
             - ~/.m2
-          key: v1-dependencies-{{ checksum "build.gradle" }}
+          key: v2-dependencies-{{ checksum "build.gradle" }}
       - save_cache:
-          key: v1-repo-{{ checksum ".circle-sha" }}
+          key: v2-repo-{{ checksum ".circle-sha" }}
           paths:
-            - ~/circleci-stepwise
+            - ~/workspace
+
+  test:
+    <<: *workdirAndImage
+    steps:
+      - run:
+          name: save SHA to a file
+          command: echo $CIRCLE_SHA1 > .circle-sha
+      - restore_cache:
+          key: v2-repo-{{ checksum ".circle-sha" }}
+          paths:
+            - ~/workspace
+      - restore_cache:
+          keys:
+          - v2-dependencies-{{ checksum "build.gradle" }}
+          # fallback to using the latest cache if no exact match is found
+          - v2-dependencies-
+      - run: gradle test
 
 
 workflows:
   version: 2
-  build_and_test:
+  deploy_to_dev:
     jobs:
       - checkout_code
       - build:
