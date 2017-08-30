@@ -32,14 +32,14 @@ jobs:
           name: save SHA to a file
           command: echo $CIRCLE_SHA1 > .circle-sha
       - restore_cache:
+          key: v1-repo-{{ checksum ".circle-sha" }}
+          paths:
+            - ~/circleci-stepwise
+      - restore_cache:
           keys:
           - v1-dependencies-{{ checksum "build.gradle" }}
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
-      - restore_cache:
-          key: v1-repo-{{ checksum ".circle-sha" }}
-          paths:
-            - ~/circleci-stepwise
       - run: gradle test
   build:
     working_directory: ~/circleci-stepwise
@@ -58,8 +58,6 @@ jobs:
           command: echo $CIRCLE_SHA1 > .circle-sha
       - restore_cache:
           key: v1-repo-{{ checksum ".circle-sha" }}
-          paths:
-            - ~/circleci-stepwise
       # Download and cache dependencies
       - restore_cache:
           keys:
@@ -68,16 +66,17 @@ jobs:
           - v1-dependencies-
 
       - run: gradle dependencies
+      - run: gradle build
 
       - save_cache:
           paths:
+            - ~/.gradle
             - ~/.m2
           key: v1-dependencies-{{ checksum "build.gradle" }}
       - save_cache:
           key: v1-repo-{{ checksum ".circle-sha" }}
           paths:
             - ~/circleci-stepwise
-      - run: gradle build
 
 
 workflows:
