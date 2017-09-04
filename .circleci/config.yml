@@ -31,7 +31,7 @@ jobs:
       TERM: dumb
 
     steps:
-      - run: cd repo
+      - run: cd ~/workspace/repo
       - run:
           name: save SHA to a file
           command: echo $CIRCLE_SHA1 > .circle-sha
