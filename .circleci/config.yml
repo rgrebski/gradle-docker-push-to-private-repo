@@ -24,6 +24,8 @@ jobs:
 
   build:
     <<: *workdirAndImage
+    working_directory: ~/workspace/repo
+
 
     environment:
       # Customize the JVM maximum heap limit
@@ -31,7 +33,8 @@ jobs:
       TERM: dumb
 
     steps:
-      - run: cd ~/workspace/repo
+      - attach_workspace:
+          at: ~/workspace
       - run:
           name: save SHA to a file
           command: echo $CIRCLE_SHA1 > .circle-sha
@@ -58,6 +61,8 @@ jobs:
 
   test:
     <<: *workdirAndImage
+    working_directory: ~/workspace/repo
+
     steps:
       - run:
           name: save SHA to a file
