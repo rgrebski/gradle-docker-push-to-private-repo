@@ -3,15 +3,8 @@ defaults: &workdirAndImage
   docker:
     - image: circleci/openjdk:8-jdk
 
-defaults: &test
-  - persist_to_workspace:
-      # Must be an absolute path, or relative path from working_directory
-      root: workspace
-
 version: 2
 jobs:
-
-
   checkout_code:
     <<: *workdirAndImage
     steps:
@@ -35,9 +28,6 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/workspace
-      - run:
-          name: save SHA to a file
-          command: echo $CIRCLE_SHA1 > .circle-sha
       # Download and cache dependencies
       - restore_cache:
           keys:
@@ -45,17 +35,14 @@ jobs:
           # fallback to using the latest cache if no exact match is found
           - v2-dependencies-
 
-      - run: gradle build
+      - run: gradle build -x test
 
       - save_cache:
           paths:
             - ~/.gradle
             - ~/.m2
           key: v2-dependencies-{{ checksum "build.gradle" }}
-      - save_cache:
-          key: v2-repo-{{ checksum ".circle-sha" }}
-          paths:
-            - ~/workspace
+
 
   test:
     <<: *workdirAndImage
@@ -64,9 +51,6 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/workspace
-      - run:
-          name: save SHA to a file
-          command: echo $CIRCLE_SHA1 > .circle-sha
       - restore_cache:
           keys:
           - v2-dependencies-{{ checksum "build.gradle" }}
@@ -86,7 +70,19 @@ jobs:
           path: ~/junit
 
 
-
+  push_docker_image:
+    <<: *workdirAndImage
+    working_directory: ~/workspace/repo
+    steps:
+      - attach_workspace:
+          at: ~/workspace
+      - setup_remote_docker
+      - restore_cache:
+          keys:
+          - v2-dependencies-{{ checksum "build.gradle" }}
+          # fallback to using the latest cache if no exact match is found
+          - v2-dependencies-
+      - run: gradle pushDockerWithGitVersion
 
 workflows:
   version: 2
@@ -99,3 +95,9 @@ workflows:
       - test:
           requires:
             - build
+      - push_docker_image:
+          requires:
+            - test
+          filters:
+            branches:
+              only: master

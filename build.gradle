@@ -57,7 +57,7 @@ task buildDocker(type: Docker, dependsOn: build) {
     maintainer 'Radek Grebski <radoslaw.grebski@stepwise.pl>'
     applicationName = jar.baseName
     tagVersion = gitVersion()
-    tag = "rgrebski/gradle-git-docker-versioning"
+    tag = "rgrebski/gradle-docker-push-to-private-repo"
     addFile(jar.archivePath, 'app.jar')
     runCommand("sh -c 'touch /app.jar'")
     exposePort(8080)
@@ -68,6 +68,19 @@ task buildDocker(type: Docker, dependsOn: build) {
             from jar
             into stageDir
         }
+    }
+}
+
+task pushDockerWithGitVersion(type: Exec, dependsOn: 'buildDocker') {
+    def newImageTag = "rgrebski/gradle-docker-push-to-private-repo:${gitVersion()}"
+    logger.warn("Pushing new image: $newImageTag")
+
+    commandLine 'bash', '-e', '-c', """
+        docker login -u \$DOCKER_USERNAME -p \$DOCKER_PASSWORD
+        docker push $newImageTag
+        """
+    doLast {
+        logger.warn("Pushed new image: $newImageTag")
     }
 }
 
